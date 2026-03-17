@@ -1,6 +1,10 @@
 In this file will be listed the changes, especially the breaking ones that one should be careful of
 when upgrading from a version of rust-sdl2 to another.
 
+### v0.37.1
+
+[PR #1488](https://github.com/Rust-SDL2/rust-sdl2/pull/1488) Fix windows build by adding a library
+
 ### v0.37.0
 
 [PR #1406](https://github.com/Rust-SDL2/rust-sdl2/pull/1406) Update bindings to SDL 2.0.26, add Event.is\_touch() for mouse events, upgrade wgpu to 0.20 in examples
