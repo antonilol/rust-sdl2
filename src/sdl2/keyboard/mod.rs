@@ -7,7 +7,6 @@ use crate::EventPump;
 
 use std::fmt;
 use std::iter::FilterMap;
-use std::mem::transmute;
 
 use crate::sys;
 
@@ -17,20 +16,21 @@ pub use self::keycode::Keycode;
 pub use self::scancode::Scancode;
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct Mod: u16 {
-        const NOMOD = 0x0000;
-        const LSHIFTMOD = 0x0001;
-        const RSHIFTMOD = 0x0002;
-        const LCTRLMOD = 0x0040;
-        const RCTRLMOD = 0x0080;
-        const LALTMOD = 0x0100;
-        const RALTMOD = 0x0200;
-        const LGUIMOD = 0x0400;
-        const RGUIMOD = 0x0800;
-        const NUMMOD = 0x1000;
-        const CAPSMOD = 0x2000;
-        const MODEMOD = 0x4000;
-        const RESERVEDMOD = 0x8000;
+        const NOMOD        = crate::sys::SDL_Keymod::KMOD_NONE.0 as u16;
+        const LSHIFTMOD    = crate::sys::SDL_Keymod::KMOD_LSHIFT.0 as u16;
+        const RSHIFTMOD    = crate::sys::SDL_Keymod::KMOD_RSHIFT.0 as u16;
+        const LCTRLMOD     = crate::sys::SDL_Keymod::KMOD_LCTRL.0 as u16;
+        const RCTRLMOD     = crate::sys::SDL_Keymod::KMOD_RCTRL.0 as u16;
+        const LALTMOD      = crate::sys::SDL_Keymod::KMOD_LALT.0 as u16;
+        const RALTMOD      = crate::sys::SDL_Keymod::KMOD_RALT.0 as u16;
+        const LGUIMOD      = crate::sys::SDL_Keymod::KMOD_LGUI.0 as u16;
+        const RGUIMOD      = crate::sys::SDL_Keymod::KMOD_RGUI.0 as u16;
+        const NUMMOD       = crate::sys::SDL_Keymod::KMOD_NUM.0 as u16;
+        const CAPSMOD      = crate::sys::SDL_Keymod::KMOD_CAPS.0 as u16;
+        const MODEMOD      = crate::sys::SDL_Keymod::KMOD_MODE.0 as u16;
+        const RESERVEDMOD  = crate::sys::SDL_Keymod::KMOD_RESERVED.0 as u16;
     }
 }
 
@@ -72,7 +72,7 @@ impl<'a> KeyboardState<'a> {
     }
 
     /// Returns an iterator all scancodes with a boolean indicating if the scancode is pressed.
-    pub fn scancodes(&self) -> ScancodeIterator {
+    pub fn scancodes(&self) -> ScancodeIterator<'_> {
         ScancodeIterator {
             index: 0,
             keyboard_state: self.keyboard_state,
@@ -102,7 +102,7 @@ impl<'a> KeyboardState<'a> {
     ///     // sugar for: new.difference(old).collect()
     /// }
     /// ```
-    pub fn pressed_scancodes(&self) -> PressedScancodeIterator {
+    pub fn pressed_scancodes(&self) -> PressedScancodeIterator<'_> {
         self.scancodes().into_pressed_scancode_iter()
     }
 }
@@ -186,13 +186,17 @@ impl KeyboardUtil {
 
     #[doc(alias = "SDL_GetModState")]
     pub fn mod_state(&self) -> Mod {
-        unsafe { Mod::from_bits(sys::SDL_GetModState() as u16).unwrap() }
+        unsafe { Mod::from_bits(sys::SDL_GetModState().0 as u16).unwrap() }
     }
 
     #[doc(alias = "SDL_SetModState")]
     pub fn set_mod_state(&self, flags: Mod) {
+        // Note: Clang (and therefore bindgen) generates different integer types
+        // for C-style enums on different platforms. On Windows, the underlying
+        // type is `i32`, while on Linux it is `u32`.
+        let arg = sys::SDL_Keymod(flags.bits().into());
         unsafe {
-            sys::SDL_SetModState(transmute::<u32, sys::SDL_Keymod>(flags.bits() as u32));
+            sys::SDL_SetModState(arg);
         }
     }
 }

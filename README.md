@@ -2,7 +2,7 @@
 
 Bindings for SDL2 in Rust
 
-### [Changelog for 0.37.1](changelog.md#v0371)
+### [Changelog for 0.38.0](changelog.md#v0380)
 
 # Overview
 
@@ -10,7 +10,7 @@ Rust-SDL2 is a library for talking to the new SDL2.0 libraries from Rust.
 Low-level C components are wrapped in Rust code to make them more idiomatic and
 abstract away inappropriate manual memory management.
 
-Rust-SDL2 uses the MIT license, but SDL2 itselfais  in under the zlib license.
+Rust-SDL2 uses the MIT license, but SDL2 itself is under the zlib license.
 
 ## Available rust features 
 
@@ -18,12 +18,14 @@ Rust-SDL2 uses the MIT license, but SDL2 itselfais  in under the zlib license.
 * `image` to link against SDL2\_image and have access to image reading and writing features
 * `mixer` to link against SDL2\_mixer and have access to sound mixing features
 * `ttf` to link against SDL2\_ttf and have access to various font features
+* `raw-window-handle` to enable the crate `raw-window-handle`, which is useful to interop with various other backends.
 * `unsafe-textures` to not have a lifetime in `Texture` structs. Texture are only freed when the program exits, or can be done manually through `unsafe`.
 * `use-bindgen` to customize bindings instead of using pre-generated `sdl_bindings` which were created from a Linux environment. It generates your own custom SDL2 bindings, tailored to your distro. Useful for specific window-related scenarios.
 * `use-vcpkg` to pull SDL2 from vcpkg instead of looking in your system.
 * `use-pkgconfig` use pkg-config to detect where your library is located on your system. Mostly useful on unix systems for static linking.
 * `static-link` to link to SDL2 statically instead of dynamically.
 * `use_mac_framework` to use SDL2 from a Framework, on macOS only
+* `use_ios_framework` to use SDL2 from a Framework, on iOS only
 * `bundled`, which pulls the SDL repository and compiles it from source. More information below.
 
 # Documentation
@@ -54,7 +56,7 @@ println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
 println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
 ```
 
-**This ONLY works with SDL2, NOT SDL2_image, SDL2_mixer, SDL2_ttf, SDL2_gfx`
+**This ONLY works with SDL2, NOT SDL2_image, SDL2_mixer, SDL2_ttf, SDL2_gfx**
 
 ### Linux
 Install these through your favourite package management tool, or via
@@ -141,6 +143,18 @@ default = []
 use_sdl2_mac_framework = ["sdl2/use_mac_framework"]
 ```
 
+Similarly for iOS you can follow the same process using the `use_ios_framework` feature. However
+official builds of the iOS framework are not available so you must compile your own SDL2.framework.
+
+Using the iOS framework also requires adding the 'Frameworks' directory to your rpath so that the
+dynamic linker can find SDL2.framework inside your app bundle. This is done by adding this to your
+`build.rs`:
+
+```rust
+#[cfg(target_os="ios")]
+println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/Frameworks");
+```
+
 #### Static linking on macOS using vcpkg
 
 Instructions to generate a static binary on macOS and other operating systems using [vcpkg][vcpkg] are [here][cargo-vcpkg-usage].
@@ -166,12 +180,12 @@ Instructions to generate a static binary on macOS and other operating systems us
 
   Where current toolchain is likely `stable-x86_64-pc-windows-msvc`.
 
-4. Copy SDL2.dll from
+4. Copy `SDL2.lib` and `SDL2.dll` from
     > SDL2-devel-2.0.x-VC\SDL2-2.0.x\lib\x64\
 
     into your cargo project, right next to your Cargo.toml.
 
- 5. When you're shipping your game make sure to copy SDL2.dll to the same directory that your compiled exe is in, otherwise the game won't launch.
+5. When you're shipping your game make sure to copy `SDL2.dll` to the same directory that your compiled exe is in, otherwise the game won't launch.
 
 #### Static linking with MSVC
 
@@ -337,7 +351,7 @@ add the following your `Cargo.toml`:
 
 ```toml
 [dependencies.sdl2]
-version = "0.37"
+version = "0.38"
 default-features = false
 features = ["ttf","image","gfx","mixer","static-link","use-vcpkg"]
 
@@ -359,7 +373,7 @@ download through Crates.io:
 
 ```toml
     [dependencies]
-    sdl2 = "0.37"
+    sdl2 = "0.38"
 ```
 
 Alternatively, pull it from GitHub to obtain the latest version from master
@@ -380,7 +394,7 @@ adding this instead:
 
 ```toml
     [dependencies.sdl2]
-    version = "0.37"
+    version = "0.38"
     default-features = false
     features = ["ttf","image","gfx","mixer"]
 ```
@@ -657,7 +671,7 @@ fn main() {
 
 ```toml
 [dependencies.sdl2]
-version = "0.37"
+version = "0.38"
 features = ["raw-window-handle"]
 ```
 

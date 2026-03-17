@@ -101,7 +101,7 @@ where
     pub fn new(loader: &'l L) -> Self {
         ResourceManager {
             cache: HashMap::new(),
-            loader: loader,
+            loader,
         }
     }
 
@@ -127,7 +127,7 @@ where
 // TextureCreator knows how to load Textures
 impl<'l, T> ResourceLoader<'l, Texture<'l>> for TextureCreator<T> {
     type Args = str;
-    fn load(&'l self, path: &str) -> Result<Texture, String> {
+    fn load(&'l self, path: &str) -> Result<Texture<'l>, String> {
         println!("LOADED A TEXTURE");
         self.load_texture(path)
     }

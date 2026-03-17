@@ -1,6 +1,56 @@
 In this file will be listed the changes, especially the breaking ones that one should be careful of
 when upgrading from a version of rust-sdl2 to another.
 
+### v0.39.0
+
+[PR #1413](https://github.com/Rust-SDL2/rust-sdl2/pull/1413) Deprecate `From` implementation of `SwapInterval` that could panic, add `TryFrom`-like inherent function.
+
+[PR #1507](https://github.com/Rust-SDL2/rust-sdl2/pull/1507) **BREAKING CHANGE** Add binding for `SDL_ComposeCustomBlendMode`. This should only be a breaking change for users relying on internal details of `BlendMode` and `SDL_BlendMode`.
+
+[PR #1510](https://github.com/Rust-SDL2/rust-sdl2/pull/1510) Fix clippy warnings.
+
+[PR #1509](https://github.com/Rust-SDL2/rust-sdl2/pull/1509) **BREAKING CHANGE** Add Send + 'static bounds for EventWatchCallback and 'static bound to AudioCallback to avoid soundness hole.
+
+[PR #1506](https://github.com/Rust-SDL2/rust-sdl2/pull/1506) **BREAKING CHANGE** Update crates.io dependencies, update bundled SDL2 to 2.32.10, add whitelist to bindgen to only emit SDL related items, and specifically no platform (or compiler, etc) specific items. Implement the same set of useful derived traits on bitflags types.
+
+### v0.38.0
+
+[PR #1493](https://github.com/Rust-SDL2/rust-sdl2/pull/1493) Add `Rect::origin` and specifies origin location in `Rect::new`.
+
+[PR #1472](https://github.com/Rust-SDL2/rust-sdl2/pull/1472) Add `Canvas::render_geometry`, `Canvas::render_geometry_raw` and an example that uses them both. Both these bindings use `SDL_RenderGeometryRaw`.
+
+[PR #1473](https://github.com/Rust-SDL2/rust-sdl2/pull/1473) **BREAKING CHANGE** Fix UB in `ToColor` implementations and remove implementation for `isize`.
+
+[PR #1414](https://github.com/Rust-SDL2/rust-sdl2/pull/1414) Use `TTF_GlyphIsProvided32` and `TTF_GlyphMetrics32` instead of the 16 bit ones.
+
+[PR #1435](https://github.com/Rust-SDL2/rust-sdl2/pull/1435) **BREAKING CHANGE** Fix some undefined behavior. Breaking changes: `mixer::Chunk`'s fields are now private and callbacks to `TimerSubsystem::add_timer` must now live for `'static`, also allowing some lifetime parameters to be removed.
+
+[PR #1461](https://github.com/Rust-SDL2/rust-sdl2/pull/1461) **BREAKING CHANGE** Added new SensorType variants: LeftGyroscope, RightGyroscope, LeftAccelerometer, RightAccelerometer
+
+[PR #1461](https://github.com/Rust-SDL2/rust-sdl2/pull/1461) **BREAKING CHANGE** Sensor::get_data now returns correct SensorData::Gyro enum
+
+[PR #1437](https://github.com/Rust-SDL2/rust-sdl2/pull/1437) **BREAKING CHANGE** Prevent users from creating `Sdl2TtfContext` out of nothing and use SDL's reference counting init/quit
+
+[PR #1464](https://github.com/Rust-SDL2/rust-sdl2/pull/1464) Added binding for `Mix_OpenAudioDevice`
+
+[PR #1451](https://github.com/Rust-SDL2/rust-sdl2/pull/1451) Add `gamma_ramp_arrays` and `calculate_gamma_ramp`.
+
+[PR #1459](https://github.com/Rust-SDL2/rust-sdl2/pull/1459) **BREAKING CHANGE** Fix image and mixer init flag logic. `image::init` and `mixer::init` will now return an error if any of the requested formats can not be initialized.
+
+[PR #1444](https://github.com/Rust-SDL2/rust-sdl2/pull/1444) Add texture scale mode api + fix unsafe
+
+[PR #1415](https://github.com/Rust-SDL2/rust-sdl2/pull/1415) Store `gfx::framerate::FPSmanager` directly in `FPSManager` instead of on the heap.
+
+[PR #1450](https://github.com/Rust-SDL2/rust-sdl2/pull/1450) **BREAKING CHANGE** Create ClippingRect type, to disambiguate between no and zero area clipping rect.
+
+[PR #1416](https://github.com/Rust-SDL2/rust-sdl2/pull/1416) Apply clippy fixes, fix deprecations and other code quality improvements.
+
+[PR #1408](https://github.com/Rust-SDL2/rust-sdl2/pull/1408) Allow comparing `Version`s, add constant with the version the bindings were compiled with.
+
+[PR #1407](https://github.com/Rust-SDL2/rust-sdl2/pull/1407) Add new use_ios_framework for linking to SDL2.framework on iOS
+
+[PR #1427](https://github.com/Rust-SDL2/rust-sdl2/pull/1427) **BREAKING CHANGE** Add system locale support. A new event type `Event::LocaleChanged` has been added.
+
 ### v0.37.1
 
 [PR #1488](https://github.com/Rust-SDL2/rust-sdl2/pull/1488) Fix windows build by adding a library

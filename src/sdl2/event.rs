@@ -1,6 +1,4 @@
-/*!
-Event Handling
- */
+//! Event Handling
 
 use std::borrow::ToOwned;
 use std::collections::HashMap;
@@ -248,10 +246,7 @@ impl crate::EventSubsystem {
     ///     dbg!(event);
     /// });
     /// ```
-    pub fn add_event_watch<'a, CB: EventWatchCallback + 'a>(
-        &self,
-        callback: CB,
-    ) -> EventWatch<'a, CB> {
+    pub fn add_event_watch<CB: EventWatchCallback>(&self, callback: CB) -> EventWatch<CB> {
         EventWatch::add(callback)
     }
 }
@@ -297,6 +292,7 @@ pub enum EventType {
     ControllerDeviceAdded = SDL_EventType::SDL_CONTROLLERDEVICEADDED as u32,
     ControllerDeviceRemoved = SDL_EventType::SDL_CONTROLLERDEVICEREMOVED as u32,
     ControllerDeviceRemapped = SDL_EventType::SDL_CONTROLLERDEVICEREMAPPED as u32,
+    ControllerSteamHandleUpdate = SDL_EventType::SDL_CONTROLLERSTEAMHANDLEUPDATED as u32,
     ControllerTouchpadDown = SDL_EventType::SDL_CONTROLLERTOUCHPADDOWN as u32,
     ControllerTouchpadMotion = SDL_EventType::SDL_CONTROLLERTOUCHPADMOTION as u32,
     ControllerTouchpadUp = SDL_EventType::SDL_CONTROLLERTOUCHPADUP as u32,
@@ -322,6 +318,8 @@ pub enum EventType {
     RenderTargetsReset = SDL_EventType::SDL_RENDER_TARGETS_RESET as u32,
     RenderDeviceReset = SDL_EventType::SDL_RENDER_DEVICE_RESET as u32,
 
+    LocaleChanged = SDL_EventType::SDL_LOCALECHANGED as u32,
+
     User = SDL_EventType::SDL_USEREVENT as u32,
     Last = SDL_EventType::SDL_LASTEVENT as u32,
 }
@@ -333,74 +331,74 @@ impl TryFrom<u32> for EventType {
         use self::EventType::*;
         use crate::sys::SDL_EventType::*;
 
-        Ok(match unsafe { transmute(n) } {
-            SDL_FIRSTEVENT => First,
+        match n {
+            x if x == SDL_FIRSTEVENT as u32 => Ok(First),
 
-            SDL_QUIT => Quit,
-            SDL_APP_TERMINATING => AppTerminating,
-            SDL_APP_LOWMEMORY => AppLowMemory,
-            SDL_APP_WILLENTERBACKGROUND => AppWillEnterBackground,
-            SDL_APP_DIDENTERBACKGROUND => AppDidEnterBackground,
-            SDL_APP_WILLENTERFOREGROUND => AppWillEnterForeground,
-            SDL_APP_DIDENTERFOREGROUND => AppDidEnterForeground,
+            x if x == SDL_QUIT as u32 => Ok(Quit),
+            x if x == SDL_APP_TERMINATING as u32 => Ok(AppTerminating),
+            x if x == SDL_APP_LOWMEMORY as u32 => Ok(AppLowMemory),
+            x if x == SDL_APP_WILLENTERBACKGROUND as u32 => Ok(AppWillEnterBackground),
+            x if x == SDL_APP_DIDENTERBACKGROUND as u32 => Ok(AppDidEnterBackground),
+            x if x == SDL_APP_WILLENTERFOREGROUND as u32 => Ok(AppWillEnterForeground),
+            x if x == SDL_APP_DIDENTERFOREGROUND as u32 => Ok(AppDidEnterForeground),
 
-            SDL_DISPLAYEVENT => Display,
-            SDL_WINDOWEVENT => Window,
+            x if x == SDL_DISPLAYEVENT as u32 => Ok(Display),
+            x if x == SDL_WINDOWEVENT as u32 => Ok(Window),
 
-            SDL_KEYDOWN => KeyDown,
-            SDL_KEYUP => KeyUp,
-            SDL_TEXTEDITING => TextEditing,
-            SDL_TEXTINPUT => TextInput,
+            x if x == SDL_KEYDOWN as u32 => Ok(KeyDown),
+            x if x == SDL_KEYUP as u32 => Ok(KeyUp),
+            x if x == SDL_TEXTEDITING as u32 => Ok(TextEditing),
+            x if x == SDL_TEXTINPUT as u32 => Ok(TextInput),
 
-            SDL_MOUSEMOTION => MouseMotion,
-            SDL_MOUSEBUTTONDOWN => MouseButtonDown,
-            SDL_MOUSEBUTTONUP => MouseButtonUp,
-            SDL_MOUSEWHEEL => MouseWheel,
+            x if x == SDL_MOUSEMOTION as u32 => Ok(MouseMotion),
+            x if x == SDL_MOUSEBUTTONDOWN as u32 => Ok(MouseButtonDown),
+            x if x == SDL_MOUSEBUTTONUP as u32 => Ok(MouseButtonUp),
+            x if x == SDL_MOUSEWHEEL as u32 => Ok(MouseWheel),
 
-            SDL_JOYAXISMOTION => JoyAxisMotion,
-            SDL_JOYBALLMOTION => JoyBallMotion,
-            SDL_JOYHATMOTION => JoyHatMotion,
-            SDL_JOYBUTTONDOWN => JoyButtonDown,
-            SDL_JOYBUTTONUP => JoyButtonUp,
-            SDL_JOYDEVICEADDED => JoyDeviceAdded,
-            SDL_JOYDEVICEREMOVED => JoyDeviceRemoved,
+            x if x == SDL_JOYAXISMOTION as u32 => Ok(JoyAxisMotion),
+            x if x == SDL_JOYBALLMOTION as u32 => Ok(JoyBallMotion),
+            x if x == SDL_JOYHATMOTION as u32 => Ok(JoyHatMotion),
+            x if x == SDL_JOYBUTTONDOWN as u32 => Ok(JoyButtonDown),
+            x if x == SDL_JOYBUTTONUP as u32 => Ok(JoyButtonUp),
+            x if x == SDL_JOYDEVICEADDED as u32 => Ok(JoyDeviceAdded),
+            x if x == SDL_JOYDEVICEREMOVED as u32 => Ok(JoyDeviceRemoved),
 
-            SDL_CONTROLLERAXISMOTION => ControllerAxisMotion,
-            SDL_CONTROLLERBUTTONDOWN => ControllerButtonDown,
-            SDL_CONTROLLERBUTTONUP => ControllerButtonUp,
-            SDL_CONTROLLERDEVICEADDED => ControllerDeviceAdded,
-            SDL_CONTROLLERDEVICEREMOVED => ControllerDeviceRemoved,
-            SDL_CONTROLLERDEVICEREMAPPED => ControllerDeviceRemapped,
-            SDL_CONTROLLERTOUCHPADDOWN => ControllerTouchpadDown,
-            SDL_CONTROLLERTOUCHPADMOTION => ControllerTouchpadMotion,
-            SDL_CONTROLLERTOUCHPADUP => ControllerTouchpadUp,
+            x if x == SDL_CONTROLLERAXISMOTION as u32 => Ok(ControllerAxisMotion),
+            x if x == SDL_CONTROLLERBUTTONDOWN as u32 => Ok(ControllerButtonDown),
+            x if x == SDL_CONTROLLERBUTTONUP as u32 => Ok(ControllerButtonUp),
+            x if x == SDL_CONTROLLERDEVICEADDED as u32 => Ok(ControllerDeviceAdded),
+            x if x == SDL_CONTROLLERDEVICEREMOVED as u32 => Ok(ControllerDeviceRemoved),
+            x if x == SDL_CONTROLLERDEVICEREMAPPED as u32 => Ok(ControllerDeviceRemapped),
+            x if x == SDL_CONTROLLERTOUCHPADDOWN as u32 => Ok(ControllerTouchpadDown),
+            x if x == SDL_CONTROLLERTOUCHPADMOTION as u32 => Ok(ControllerTouchpadMotion),
+            x if x == SDL_CONTROLLERTOUCHPADUP as u32 => Ok(ControllerTouchpadUp),
             #[cfg(feature = "hidapi")]
-            SDL_CONTROLLERSENSORUPDATE => ControllerSensorUpdated,
+            x if x == SDL_CONTROLLERSENSORUPDATE as u32 => Ok(ControllerSensorUpdated),
 
-            SDL_FINGERDOWN => FingerDown,
-            SDL_FINGERUP => FingerUp,
-            SDL_FINGERMOTION => FingerMotion,
-            SDL_DOLLARGESTURE => DollarGesture,
-            SDL_DOLLARRECORD => DollarRecord,
-            SDL_MULTIGESTURE => MultiGesture,
+            x if x == SDL_FINGERDOWN as u32 => Ok(FingerDown),
+            x if x == SDL_FINGERUP as u32 => Ok(FingerUp),
+            x if x == SDL_FINGERMOTION as u32 => Ok(FingerMotion),
+            x if x == SDL_DOLLARGESTURE as u32 => Ok(DollarGesture),
+            x if x == SDL_DOLLARRECORD as u32 => Ok(DollarRecord),
+            x if x == SDL_MULTIGESTURE as u32 => Ok(MultiGesture),
 
-            SDL_CLIPBOARDUPDATE => ClipboardUpdate,
-            SDL_DROPFILE => DropFile,
-            SDL_DROPTEXT => DropText,
-            SDL_DROPBEGIN => DropBegin,
-            SDL_DROPCOMPLETE => DropComplete,
+            x if x == SDL_CLIPBOARDUPDATE as u32 => Ok(ClipboardUpdate),
+            x if x == SDL_DROPFILE as u32 => Ok(DropFile),
+            x if x == SDL_DROPTEXT as u32 => Ok(DropText),
+            x if x == SDL_DROPBEGIN as u32 => Ok(DropBegin),
+            x if x == SDL_DROPCOMPLETE as u32 => Ok(DropComplete),
 
-            SDL_AUDIODEVICEADDED => AudioDeviceAdded,
-            SDL_AUDIODEVICEREMOVED => AudioDeviceRemoved,
+            x if x == SDL_AUDIODEVICEADDED as u32 => Ok(AudioDeviceAdded),
+            x if x == SDL_AUDIODEVICEREMOVED as u32 => Ok(AudioDeviceRemoved),
 
-            SDL_RENDER_TARGETS_RESET => RenderTargetsReset,
-            SDL_RENDER_DEVICE_RESET => RenderDeviceReset,
+            x if x == SDL_RENDER_TARGETS_RESET as u32 => Ok(RenderTargetsReset),
+            x if x == SDL_RENDER_DEVICE_RESET as u32 => Ok(RenderDeviceReset),
 
-            SDL_USEREVENT => User,
-            SDL_LASTEVENT => Last,
+            x if x == SDL_USEREVENT as u32 => Ok(User),
+            x if x == SDL_LASTEVENT as u32 => Ok(Last),
 
-            _ => return Err(()),
-        })
+            _ => Err(()),
+        }
     }
 }
 
@@ -411,6 +409,7 @@ pub enum DisplayEvent {
     Orientation(Orientation),
     Connected,
     Disconnected,
+    Moved,
 }
 
 impl DisplayEvent {
@@ -433,6 +432,7 @@ impl DisplayEvent {
             }
             sys::SDL_DisplayEventID::SDL_DISPLAYEVENT_CONNECTED => DisplayEvent::Connected,
             sys::SDL_DisplayEventID::SDL_DISPLAYEVENT_DISCONNECTED => DisplayEvent::Disconnected,
+            sys::SDL_DisplayEventID::SDL_DISPLAYEVENT_MOVED => DisplayEvent::Moved,
         }
     }
 
@@ -450,6 +450,7 @@ impl DisplayEvent {
                 sys::SDL_DisplayEventID::SDL_DISPLAYEVENT_DISCONNECTED as u8,
                 0,
             ),
+            DisplayEvent::Moved => (sys::SDL_DisplayEventID::SDL_DISPLAYEVENT_MOVED as u8, 0),
         }
     }
 
@@ -739,6 +740,11 @@ pub enum Event {
         /// The controller's joystick `id`
         which: u32,
     },
+    ControllerSteamHandleUpdate {
+        timestamp: u32,
+        /// The controller's joystick `id`
+        which: u32,
+    },
 
     ControllerTouchpadDown {
         timestamp: u32,
@@ -896,6 +902,10 @@ pub enum Event {
         timestamp: u32,
     },
     RenderDeviceReset {
+        timestamp: u32,
+    },
+
+    LocaleChanged {
         timestamp: u32,
     },
 
@@ -1460,6 +1470,22 @@ impl Event {
                 }
             }
 
+            Event::ControllerSteamHandleUpdate { timestamp, which } => {
+                let event = sys::SDL_ControllerDeviceEvent {
+                    type_: SDL_EventType::SDL_CONTROLLERSTEAMHANDLEUPDATED as u32,
+                    timestamp,
+                    which: which as i32,
+                };
+                unsafe {
+                    ptr::copy(
+                        &event,
+                        ret.as_mut_ptr() as *mut sys::SDL_ControllerDeviceEvent,
+                        1,
+                    );
+                    Some(ret.assume_init())
+                }
+            }
+
             Event::FingerDown { .. }
             | Event::FingerUp { .. }
             | Event::FingerMotion { .. }
@@ -1780,6 +1806,13 @@ impl Event {
                         which: event.which as u32,
                     }
                 }
+                EventType::ControllerSteamHandleUpdate => {
+                    let event = raw.cdevice;
+                    Event::ControllerSteamHandleUpdate {
+                        timestamp: event.timestamp,
+                        which: event.which as u32,
+                    }
+                }
                 EventType::ControllerTouchpadDown => {
                     let event = raw.ctouchpad;
                     Event::ControllerTouchpadDown {
@@ -1977,6 +2010,10 @@ impl Event {
                     timestamp: raw.common.timestamp,
                 },
 
+                EventType::LocaleChanged => Event::LocaleChanged {
+                    timestamp: raw.common.timestamp,
+                },
+
                 EventType::First => panic!("Unused event, EventType::First, was encountered"),
                 EventType::Last => panic!("Unusable event, EventType::Last, was encountered"),
 
@@ -2093,6 +2130,10 @@ impl Event {
             | (Self::ControllerDeviceAdded { .. }, Self::ControllerDeviceAdded { .. })
             | (Self::ControllerDeviceRemoved { .. }, Self::ControllerDeviceRemoved { .. })
             | (Self::ControllerDeviceRemapped { .. }, Self::ControllerDeviceRemapped { .. })
+            | (
+                Self::ControllerSteamHandleUpdate { .. },
+                Self::ControllerSteamHandleUpdate { .. },
+            )
             | (Self::FingerDown { .. }, Self::FingerDown { .. })
             | (Self::FingerUp { .. }, Self::FingerUp { .. })
             | (Self::FingerMotion { .. }, Self::FingerMotion { .. })
@@ -2162,6 +2203,7 @@ impl Event {
             Self::ControllerDeviceAdded { timestamp, .. } => timestamp,
             Self::ControllerDeviceRemoved { timestamp, .. } => timestamp,
             Self::ControllerDeviceRemapped { timestamp, .. } => timestamp,
+            Self::ControllerSteamHandleUpdate { timestamp, .. } => timestamp,
             Self::ControllerTouchpadDown { timestamp, .. } => timestamp,
             Self::ControllerTouchpadMotion { timestamp, .. } => timestamp,
             Self::ControllerTouchpadUp { timestamp, .. } => timestamp,
@@ -2182,6 +2224,7 @@ impl Event {
             Self::AudioDeviceRemoved { timestamp, .. } => timestamp,
             Self::RenderTargetsReset { timestamp, .. } => timestamp,
             Self::RenderDeviceReset { timestamp, .. } => timestamp,
+            Self::LocaleChanged { timestamp, .. } => timestamp,
             Self::User { timestamp, .. } => timestamp,
             Self::Unknown { timestamp, .. } => timestamp,
         }
@@ -2359,25 +2402,22 @@ impl Event {
         // FIXME: Use a constant from sdl2-sys when bindgen will be fixed (see https://github.com/Rust-SDL2/rust-sdl2/issues/1265)
         const SDL_TOUCH_MOUSEID: u32 = 0xFFFFFFFF;
 
-        match self {
+        matches!(
+            self,
             Self::MouseMotion {
                 which: SDL_TOUCH_MOUSEID,
                 ..
-            }
-            | Self::MouseButtonDown {
+            } | Self::MouseButtonDown {
+                which: SDL_TOUCH_MOUSEID,
+                ..
+            } | Self::MouseButtonUp {
+                which: SDL_TOUCH_MOUSEID,
+                ..
+            } | Self::MouseWheel {
                 which: SDL_TOUCH_MOUSEID,
                 ..
             }
-            | Self::MouseButtonUp {
-                which: SDL_TOUCH_MOUSEID,
-                ..
-            }
-            | Self::MouseWheel {
-                which: SDL_TOUCH_MOUSEID,
-                ..
-            } => true,
-            _ => false,
-        }
+        )
     }
 
     /// Returns `true` if this is a controller event.
@@ -2407,6 +2447,7 @@ impl Event {
                 | Self::ControllerDeviceAdded { .. }
                 | Self::ControllerDeviceRemoved { .. }
                 | Self::ControllerDeviceRemapped { .. }
+                | Self::ControllerSteamHandleUpdate { .. }
         )
     }
 
@@ -2578,6 +2619,27 @@ impl Event {
         )
     }
 
+    /// Returns `true` if this is a locale event.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use sdl2::event::Event;
+    ///
+    /// let ev = Event::LocaleChanged {
+    ///    timestamp: 0,
+    /// };
+    /// assert!(ev.is_locale());
+    ///
+    /// let another_ev = Event::Quit {
+    ///   timestamp: 0,
+    /// };
+    /// assert!(another_ev.is_locale() == false); // Not a locale event!
+    /// ```
+    pub fn is_locale(&self) -> bool {
+        matches!(self, Self::LocaleChanged { .. })
+    }
+
     /// Returns `true` if this is a user event.
     ///
     /// # Example
@@ -2708,7 +2770,7 @@ impl crate::EventPump {
     ///     }
     /// }
     /// ```
-    pub fn poll_iter(&mut self) -> EventPollIterator {
+    pub fn poll_iter(&mut self) -> EventPollIterator<'_> {
         EventPollIterator {
             _marker: PhantomData,
         }
@@ -2735,7 +2797,7 @@ impl crate::EventPump {
     /// Returns a waiting iterator that calls `wait_event()`.
     ///
     /// Note: The iterator will never terminate.
-    pub fn wait_iter(&mut self) -> EventWaitIterator {
+    pub fn wait_iter(&mut self) -> EventWaitIterator<'_> {
         EventWaitIterator {
             _marker: PhantomData,
         }
@@ -2745,7 +2807,7 @@ impl crate::EventPump {
     ///
     /// Note: The iterator will never terminate, unless waiting for an event
     /// exceeds the specified timeout.
-    pub fn wait_timeout_iter(&mut self, timeout: u32) -> EventWaitTimeoutIterator {
+    pub fn wait_timeout_iter(&mut self, timeout: u32) -> EventWaitTimeoutIterator<'_> {
         EventWaitTimeoutIterator {
             _marker: PhantomData,
             timeout,
@@ -2753,7 +2815,7 @@ impl crate::EventPump {
     }
 
     #[inline]
-    pub fn keyboard_state(&self) -> crate::keyboard::KeyboardState {
+    pub fn keyboard_state(&self) -> crate::keyboard::KeyboardState<'_> {
         crate::keyboard::KeyboardState::new(self)
     }
 
@@ -2890,26 +2952,24 @@ impl EventSender {
 }
 
 /// A callback trait for [`EventSubsystem::add_event_watch`].
-pub trait EventWatchCallback {
+pub trait EventWatchCallback: Send + 'static {
     fn callback(&mut self, event: Event);
 }
 
 /// An handler for the event watch callback.
 /// One must bind this struct in a variable as long as you want to keep the callback active.
 /// For further information, see [`EventSubsystem::add_event_watch`].
-pub struct EventWatch<'a, CB: EventWatchCallback + 'a> {
+pub struct EventWatch<CB: EventWatchCallback> {
     activated: bool,
     callback: Box<CB>,
-    _phantom: PhantomData<&'a CB>,
 }
 
-impl<'a, CB: EventWatchCallback + 'a> EventWatch<'a, CB> {
-    fn add(callback: CB) -> EventWatch<'a, CB> {
+impl<CB: EventWatchCallback> EventWatch<CB> {
+    fn add(callback: CB) -> EventWatch<CB> {
         let f = Box::new(callback);
         let mut watch = EventWatch {
             activated: false,
             callback: f,
-            _phantom: PhantomData,
         };
         watch.activate();
         watch
@@ -2956,7 +3016,7 @@ impl<'a, CB: EventWatchCallback + 'a> EventWatch<'a, CB> {
     }
 }
 
-impl<'a, CB: EventWatchCallback + 'a> Drop for EventWatch<'a, CB> {
+impl<CB: EventWatchCallback> Drop for EventWatch<CB> {
     fn drop(&mut self) {
         self.deactivate();
     }
@@ -2972,7 +3032,7 @@ extern "C" fn event_callback_marshall<CB: EventWatchCallback>(
     0
 }
 
-impl<F: FnMut(Event)> EventWatchCallback for F {
+impl<F: FnMut(Event) + Send + 'static> EventWatchCallback for F {
     fn callback(&mut self, event: Event) {
         self(event)
     }

@@ -27,12 +27,12 @@ use libc::{c_double, c_int, c_uint};
 use rwops::RWops;
 use std::borrow::ToOwned;
 use std::convert::TryInto;
-use std::default;
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::marker::PhantomData;
 use std::path::Path;
 use std::str::from_utf8;
+use std::{default, ptr};
 use sys;
 use sys::mixer;
 use version::Version;
@@ -96,38 +96,31 @@ pub fn get_linked_version() -> Version {
 }
 
 bitflags!(
-    pub struct InitFlag : u32 {
-        const FLAC = mixer::MIX_InitFlags_MIX_INIT_FLAC as u32;
-        const MOD  = mixer::MIX_InitFlags_MIX_INIT_MOD as u32;
-        const MP3  = mixer::MIX_InitFlags_MIX_INIT_MP3 as u32;
-        const OGG  = mixer::MIX_InitFlags_MIX_INIT_OGG as u32;
-        const MID  = mixer::MIX_InitFlags_MIX_INIT_MID as u32;
-        const OPUS = mixer::MIX_InitFlags_MIX_INIT_OPUS as u32;
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub struct InitFlag: u32 {
+        const FLAC = mixer::MIX_InitFlags_MIX_INIT_FLAC;
+        const MOD  = mixer::MIX_InitFlags_MIX_INIT_MOD;
+        const MP3  = mixer::MIX_InitFlags_MIX_INIT_MP3;
+        const OGG  = mixer::MIX_InitFlags_MIX_INIT_OGG;
+        const MID  = mixer::MIX_InitFlags_MIX_INIT_MID;
+        const OPUS = mixer::MIX_InitFlags_MIX_INIT_OPUS;
     }
 );
 
-impl ToString for InitFlag {
-    fn to_string(&self) -> String {
-        let mut string = "".to_string();
-        if self.contains(InitFlag::FLAC) {
-            string = string + &"INIT_FLAC ".to_string();
-        }
-        if self.contains(InitFlag::MOD) {
-            string = string + &"INIT_MOD ".to_string();
-        }
-        if self.contains(InitFlag::MP3) {
-            string = string + &"INIT_MP3 ".to_string();
-        }
-        if self.contains(InitFlag::OGG) {
-            string = string + &"INIT_OGG ".to_string();
-        }
-        if self.contains(InitFlag::MID) {
-            string = string + &"INIT_MID ".to_string();
-        }
-        if self.contains(InitFlag::OPUS) {
-            string = string + &"INIT_OPUS ".to_string();
-        }
-        string
+bitflags!(
+    /// Which audio format changes are allowed when opening a device ([`open_audio_device`]).
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub struct AllowChangeFlag: u32 {
+        const FREQUENCY = sys::SDL_AUDIO_ALLOW_FREQUENCY_CHANGE;
+        const FORMAT = sys::SDL_AUDIO_ALLOW_FORMAT_CHANGE;
+        const CHANNELS = sys::SDL_AUDIO_ALLOW_CHANNELS_CHANGE;
+        const SAMPLES = sys::SDL_AUDIO_ALLOW_SAMPLES_CHANGE;
+    }
+);
+
+impl fmt::Display for InitFlag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        <Self as fmt::Debug>::fmt(self, f)
     }
 }
 
@@ -143,35 +136,37 @@ impl Drop for Sdl2MixerContext {
     }
 }
 
-/// Loads dynamic libraries and prepares them for use.  Flags should be
-/// one or more flags from `InitFlag`.
+/// Loads dynamic libraries and prepares them for use.  Flags should be one or
+/// more flags from `InitFlag`. Returns error if any of the requested flags
+/// failed
 pub fn init(flags: InitFlag) -> Result<Sdl2MixerContext, String> {
     let return_flags = unsafe {
         let ret = mixer::Mix_Init(flags.bits() as c_int);
         InitFlag::from_bits_truncate(ret as u32)
     };
-    // Check if all init flags were set
-    if flags.intersects(return_flags) {
-        Ok(Sdl2MixerContext)
-    } else {
-        // Flags not matching won't always set the error message text
-        // according to sdl docs
-        if get_error().is_empty() {
-            let un_init_flags = return_flags ^ flags;
-            let error_str = &("Could not init: ".to_string() + &un_init_flags.to_string());
-            let _ = ::set_error(error_str);
+
+    if return_flags & flags != flags {
+        // According to docs, error message text is not always set
+        let mut error = get_error();
+        if error.is_empty() {
+            let failed_libs = flags - return_flags;
+            error = format!("Could not init: {}", failed_libs);
+            let _ = ::set_error(&error);
         }
-        Err(get_error())
+        Err(error)
+    } else {
+        Ok(Sdl2MixerContext)
     }
 }
 
-/// Open the mixer with a certain audio format.
+/// Opens the default audio device for playback. If you need to select a specific audio device
+/// or require more fine-grained control over the device configuration, use [`open_audio_device`].
 ///
 /// * `chunksize`: It is recommended to choose values between 256 and 1024, depending on whether
-///                you prefer latency or compatibility. Small values reduce latency but may not
-///                work very well on older systems. For instance, a chunk size of 256 will give
-///                you a latency of 6ms, while a chunk size of 1024 will give you a latency of 23ms
-///                for a frequency of 44100kHz.
+///   you prefer latency or compatibility. Small values reduce latency but may not
+///   work very well on older systems. For instance, a chunk size of 256 will give
+///   you a latency of 6ms, while a chunk size of 1024 will give you a latency of 23ms
+///   for a frequency of 44100kHz.
 pub fn open_audio(
     frequency: i32,
     format: AudioFormat,
@@ -184,6 +179,60 @@ pub fn open_audio(
             format,
             channels as c_int,
             chunksize as c_int,
+        )
+    };
+    if ret == 0 {
+        Ok(())
+    } else {
+        Err(get_error())
+    }
+}
+
+/// Open a specific audio device for playback.
+///
+/// (A slightly simpler version of this function is available in [`open_audio`], which still might
+/// meet most applications' needs.)
+///
+/// The `allowed_changes` parameter specifies what settings are flexible. These tell `SDL_mixer`
+/// that the  app doesn't mind if a specific setting changes. For example, the app might need stereo
+/// data in [`i16`] format, but if the sample rate or chunk size changes, the app can handle that.
+/// In that case, the app would specify `AllowChangeFlag::FORMAT | AllowChangeFlag::SAMPLES`. In
+/// this case, if the system's hardware requires something other than the requested format,
+/// `SDL_mixer` can select what the hardware demands instead of the app. For a given
+/// [`AllowChangeFlag`], If it is not specified, `SDL_mixer` must convert data behind the scenes
+/// between what the app demands and what the hardware requires. If your app needs precisely what
+/// is requested, specify [`AllowChangeFlag::empty`].
+///
+/// * `frequency`: The frequency to playback audio at (in Hz).
+/// * `format`: Audio format ([`AudioFormat`]).
+/// * `channels`: Number of channels (1 is mono, 2 is stereo, etc).
+/// * `chunksize`: Audio buffer size in sample FRAMES (total samples divided by channel count).
+///   The lower the number, the lower the latency, but you risk dropouts if it gets
+///   too low.
+/// * `device`: The device name to open, or [`None`] to choose a reasonable default.
+/// * `allowed_changes`: Allow change flags ([`AllowChangeFlag`]).
+///
+pub fn open_audio_device<'a, D>(
+    frequency: i32,
+    format: AudioFormat,
+    channels: i32,
+    chunksize: i32,
+    device: D,
+    allowed_changes: AllowChangeFlag,
+) -> Result<(), String>
+where
+    D: Into<Option<&'a str>>,
+{
+    let ret = unsafe {
+        let device = device.into().map(|device| CString::new(device).unwrap());
+        let device_ptr = device.as_ref().map_or(ptr::null(), |s| s.as_ptr());
+        mixer::Mix_OpenAudioDevice(
+            frequency as c_int,
+            format,
+            channels as c_int,
+            chunksize as c_int,
+            device_ptr,
+            allowed_changes.bits() as c_int,
         )
     };
     if ret == 0 {
@@ -231,8 +280,8 @@ pub fn get_chunk_decoder(index: i32) -> String {
 /// The internal format for an audio chunk.
 #[derive(PartialEq)]
 pub struct Chunk {
-    pub raw: *mut mixer::Mix_Chunk,
-    pub owned: bool,
+    raw: *mut mixer::Mix_Chunk,
+    owned: bool,
 }
 
 impl Drop for Chunk {
@@ -264,8 +313,7 @@ impl Chunk {
     /// It's your responsibility to provide the audio data in the right format, as no conversion
     /// will take place when using this method.
     pub fn from_raw_buffer<T: AudioFormatNum>(buffer: Box<[T]>) -> Result<Chunk, String> {
-        use std::mem::size_of;
-        let len: u32 = (buffer.len() * size_of::<T>()).try_into().unwrap();
+        let len: u32 = std::mem::size_of_val(&*buffer).try_into().unwrap();
         let raw = unsafe { mixer::Mix_QuickLoad_RAW(Box::into_raw(buffer) as *mut u8, len) };
         Self::from_owned_raw(raw)
     }
@@ -497,7 +545,7 @@ impl Channel {
         match ret {
             mixer::Mix_Fading_MIX_FADING_OUT => Fading::FadingOut,
             mixer::Mix_Fading_MIX_FADING_IN => Fading::FadingIn,
-            mixer::Mix_Fading_MIX_NO_FADING | _ => Fading::NoFading,
+            _ /* | mixer::Mix_Fading_MIX_NO_FADING */ => Fading::NoFading,
         }
     }
 
@@ -824,7 +872,7 @@ impl<'a> Music<'a> {
             mixer::Mix_MusicType_MUS_MP3_MAD_UNUSED => MusicType::MusicMp3Mad,
             mixer::Mix_MusicType_MUS_FLAC => MusicType::MusicFlac,
             mixer::Mix_MusicType_MUS_MODPLUG_UNUSED => MusicType::MusicModPlug,
-            mixer::Mix_MusicType_MUS_NONE | _ => MusicType::MusicNone,
+            _ /* | mixer::Mix_MusicType_MUS_NONE */ => MusicType::MusicNone,
         }
     }
 
@@ -981,7 +1029,7 @@ impl<'a> Music<'a> {
         match ret {
             mixer::Mix_Fading_MIX_FADING_OUT => Fading::FadingOut,
             mixer::Mix_Fading_MIX_FADING_IN => Fading::FadingIn,
-            mixer::Mix_Fading_MIX_NO_FADING | _ => Fading::NoFading,
+            _ /* | mixer::Mix_Fading_MIX_NO_FADING */ => Fading::NoFading,
         }
     }
 }

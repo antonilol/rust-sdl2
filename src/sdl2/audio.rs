@@ -337,10 +337,15 @@ impl TryFrom<u32> for AudioStatus {
         use self::AudioStatus::*;
         use crate::sys::SDL_AudioStatus::*;
 
-        Ok(match unsafe { mem::transmute(n) } {
-            SDL_AUDIO_STOPPED => Stopped,
-            SDL_AUDIO_PLAYING => Playing,
-            SDL_AUDIO_PAUSED => Paused,
+        const STOPPED: u32 = SDL_AUDIO_STOPPED as u32;
+        const PLAYING: u32 = SDL_AUDIO_PLAYING as u32;
+        const PAUSED: u32 = SDL_AUDIO_PAUSED as u32;
+
+        Ok(match n {
+            STOPPED => Stopped,
+            PLAYING => Playing,
+            PAUSED => Paused,
+            _ => return Err(()),
         })
     }
 }
@@ -507,7 +512,7 @@ impl Drop for AudioSpecWAV {
     }
 }
 
-pub trait AudioCallback: Send
+pub trait AudioCallback: Send + 'static
 where
     Self::Channel: AudioFormatNum + 'static,
 {
@@ -1020,7 +1025,7 @@ impl<CB: AudioCallback> AudioDevice<CB> {
     /// called.
     /// Use this method to read and mutate callback data.
     #[doc(alias = "SDL_LockAudioDevice")]
-    pub fn lock(&mut self) -> AudioDeviceLockGuard<CB> {
+    pub fn lock(&mut self) -> AudioDeviceLockGuard<'_, CB> {
         unsafe { sys::SDL_LockAudioDevice(self.device_id.id()) };
         AudioDeviceLockGuard {
             device: self,

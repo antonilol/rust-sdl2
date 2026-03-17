@@ -34,11 +34,12 @@ use version::Version;
 bitflags! {
     /// InitFlags are passed to init() to control which subsystem
     /// functionality to load.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct InitFlag : u32 {
-        const JPG  = image::IMG_InitFlags_IMG_INIT_JPG as u32;
-        const PNG  = image::IMG_InitFlags_IMG_INIT_PNG as u32;
-        const TIF  = image::IMG_InitFlags_IMG_INIT_TIF as u32;
-        const WEBP = image::IMG_InitFlags_IMG_INIT_WEBP as u32;
+        const JPG  = image::IMG_InitFlags_IMG_INIT_JPG;
+        const PNG  = image::IMG_InitFlags_IMG_INIT_PNG;
+        const TIF  = image::IMG_InitFlags_IMG_INIT_TIF;
+        const WEBP = image::IMG_InitFlags_IMG_INIT_WEBP;
     }
 }
 
@@ -133,12 +134,12 @@ impl<'a> SaveSurface for Surface<'a> {
 
 /// Method extensions for creating Textures from a `TextureCreator`
 pub trait LoadTexture {
-    fn load_texture<P: AsRef<Path>>(&self, filename: P) -> Result<Texture, String>;
-    fn load_texture_bytes(&self, buf: &[u8]) -> Result<Texture, String>;
+    fn load_texture<P: AsRef<Path>>(&self, filename: P) -> Result<Texture<'_>, String>;
+    fn load_texture_bytes(&self, buf: &[u8]) -> Result<Texture<'_>, String>;
 }
 
 impl<T> LoadTexture for TextureCreator<T> {
-    fn load_texture<P: AsRef<Path>>(&self, filename: P) -> Result<Texture, String> {
+    fn load_texture<P: AsRef<Path>>(&self, filename: P) -> Result<Texture<'_>, String> {
         //! Loads an SDL Texture from a file
         unsafe {
             let c_filename = CString::new(filename.as_ref().to_str().unwrap()).unwrap();
@@ -152,7 +153,7 @@ impl<T> LoadTexture for TextureCreator<T> {
     }
 
     #[doc(alias = "IMG_LoadTexture")]
-    fn load_texture_bytes(&self, buf: &[u8]) -> Result<Texture, String> {
+    fn load_texture_bytes(&self, buf: &[u8]) -> Result<Texture<'_>, String> {
         //! Loads an SDL Texture from a buffer that the format must be something supported by SDL2_image (png, jpeg, ect, but NOT RGBA8888 bytes for instance)
         unsafe {
             let buf = sdl2_sys::SDL_RWFromMem(buf.as_ptr() as *mut libc::c_void, buf.len() as i32);
@@ -179,18 +180,19 @@ impl Drop for Sdl2ImageContext {
 }
 
 /// Initializes `SDL2_image` with `InitFlags`.
-/// If not every flag is set it returns an error
+/// Returns error if any of the requested flags failed
 pub fn init(flags: InitFlag) -> Result<Sdl2ImageContext, String> {
     let return_flags = unsafe {
         let used = image::IMG_Init(flags.bits() as c_int);
         InitFlag::from_bits_truncate(used as u32)
     };
-    if !flags.intersects(return_flags) {
+
+    if return_flags & flags != flags {
         // According to docs, error message text is not always set
         let mut error = get_error();
         if error.is_empty() {
-            let un_init_flags = return_flags ^ flags;
-            error = format!("Could not init: {}", un_init_flags);
+            let failed_libs = flags - return_flags;
+            error = format!("Could not init: {}", failed_libs);
             let _ = ::set_error(&error);
         }
         Err(error)

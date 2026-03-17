@@ -128,6 +128,8 @@ fn compile_sdl2(sdl2_build_path: &Path, target_os: &str) -> PathBuf {
                     cfg.cflag("-fcommon");
                 }
             }
+            // The bundled SDL uses `bool`, `false`, and `true` which are reserved keywords in c23
+            cfg.define("CMAKE_C_STANDARD", "99");
         }
     }
 
@@ -136,12 +138,13 @@ fn compile_sdl2(sdl2_build_path: &Path, target_os: &str) -> PathBuf {
     }
 
     if target_os == "android" {
-        cfg.define(
-            "ANDROID_NDK",
-            env::var("ANDROID_NDK_HOME").expect(
-                "ANDROID_NDK_HOME environment variable must be set when compiling for Android",
-            ),
-        );
+        let ndk_home = env::var("ANDROID_NDK_HOME")
+            .expect("ANDROID_NDK_HOME environment variable must be set when compiling for Android");
+
+        #[cfg(target_os = "windows")]
+        let ndk_home = ndk_home.replace("\\", "/");
+
+        cfg.define("ANDROID_NDK", ndk_home);
     }
 
     if cfg!(feature = "static-link") {
@@ -232,7 +235,9 @@ fn link_sdl2(target_os: &str) {
         // pkg-config automatically prints this output when probing,
         // however pkg_config isn't used with the feature "bundled"
         if cfg!(feature = "bundled") || cfg!(not(feature = "use-pkgconfig")) {
-            if cfg!(feature = "use_mac_framework") && target_os == "darwin" {
+            let use_mac_framework = cfg!(feature = "use_mac_framework") && target_os == "darwin";
+            let use_ios_framework = cfg!(feature = "use_ios_framework") && target_os == "ios";
+            if use_mac_framework || use_ios_framework {
                 println!("cargo:rustc-flags=-l framework=SDL2");
             } else if target_os != "emscripten" {
                 println!("cargo:rustc-flags=-l SDL2");
@@ -329,7 +334,15 @@ fn link_sdl2(target_os: &str) {
             } else if target_os.contains("windows") {
                 println!("cargo:rustc-flags=-l SDL2_mixer");
             } else if target_os.contains("darwin") {
-                if cfg!(any(mac_framework, feature = "use_mac_framework")) {
+                let use_framework = cfg!(any(mac_framework, feature = "use_mac_framework"));
+                if use_framework {
+                    println!("cargo:rustc-flags=-l framework=SDL2_mixer");
+                } else {
+                    println!("cargo:rustc-flags=-l SDL2_mixer");
+                }
+            } else if target_os.contains("ios") {
+                let use_framework = cfg!(any(ios_framework, feature = "use_ios_framework"));
+                if use_framework {
                     println!("cargo:rustc-flags=-l framework=SDL2_mixer");
                 } else {
                     println!("cargo:rustc-flags=-l SDL2_mixer");
@@ -345,7 +358,15 @@ fn link_sdl2(target_os: &str) {
             } else if target_os.contains("windows") {
                 println!("cargo:rustc-flags=-l SDL2_image");
             } else if target_os.contains("darwin") {
-                if cfg!(any(mac_framework, feature = "use_mac_framework")) {
+                let use_framework = cfg!(any(mac_framework, feature = "use_mac_framework"));
+                if use_framework {
+                    println!("cargo:rustc-flags=-l framework=SDL2_image");
+                } else {
+                    println!("cargo:rustc-flags=-l SDL2_image");
+                }
+            } else if target_os.contains("ios") {
+                let use_framework = cfg!(any(ios_framework, feature = "use_ios_framework"));
+                if use_framework {
                     println!("cargo:rustc-flags=-l framework=SDL2_image");
                 } else {
                     println!("cargo:rustc-flags=-l SDL2_image");
@@ -361,7 +382,15 @@ fn link_sdl2(target_os: &str) {
             } else if target_os.contains("windows") {
                 println!("cargo:rustc-flags=-l SDL2_ttf");
             } else if target_os.contains("darwin") {
-                if cfg!(any(mac_framework, feature = "use_mac_framework")) {
+                let use_framework = cfg!(any(mac_framework, feature = "use_mac_framework"));
+                if use_framework {
+                    println!("cargo:rustc-flags=-l framework=SDL2_ttf");
+                } else {
+                    println!("cargo:rustc-flags=-l SDL2_ttf");
+                }
+            } else if target_os.contains("ios") {
+                let use_framework = cfg!(any(ios_framework, feature = "use_ios_framework"));
+                if use_framework {
                     println!("cargo:rustc-flags=-l framework=SDL2_ttf");
                 } else {
                     println!("cargo:rustc-flags=-l SDL2_ttf");
@@ -377,7 +406,15 @@ fn link_sdl2(target_os: &str) {
             } else if target_os.contains("windows") {
                 println!("cargo:rustc-flags=-l SDL2_gfx");
             } else if target_os.contains("darwin") {
-                if cfg!(any(mac_framework, feature = "use_mac_framework")) {
+                let use_framework = cfg!(any(mac_framework, feature = "use_mac_framework"));
+                if use_framework {
+                    println!("cargo:rustc-flags=-l framework=SDL2_gfx");
+                } else {
+                    println!("cargo:rustc-flags=-l SDL2_gfx");
+                }
+            } else if target_os.contains("ios") {
+                let use_framework = cfg!(any(ios_framework, feature = "use_ios_framework"));
+                if use_framework {
                     println!("cargo:rustc-flags=-l framework=SDL2_gfx");
                 } else {
                     println!("cargo:rustc-flags=-l SDL2_gfx");
@@ -620,6 +657,10 @@ fn generate_bindings(target: &str, host: &str, headers_paths: &[String]) {
     let mut bindings = bindgen::Builder::default()
         // enable no_std-friendly output by only using core definitions
         .use_core()
+        .allowlist_item("(SDL|AUDIO|RW)_.*")
+        .bitfield_enum("SDL_RendererFlip")
+        .newtype_enum("SDL_Keymod")
+        .newtype_enum("SDL_BlendMode")
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })

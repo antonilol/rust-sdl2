@@ -17,6 +17,7 @@ use sys::SDL_Surface;
 
 bitflags! {
     /// The styling of a font.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct FontStyle: i32 {
         const NORMAL        = ttf::TTF_STYLE_NORMAL as i32;
         const BOLD          = ttf::TTF_STYLE_BOLD as i32;
@@ -251,7 +252,7 @@ impl<'ttf, 'r> Drop for Font<'ttf, 'r> {
 }
 
 /// Internally used to load a font (for internal visibility).
-pub fn internal_load_font<'ttf, P: AsRef<Path>>(
+pub(super) fn internal_load_font<'ttf, P: AsRef<Path>>(
     path: P,
     ptsize: u16,
 ) -> Result<Font<'ttf, 'static>, String> {
@@ -271,7 +272,10 @@ pub fn internal_load_font<'ttf, P: AsRef<Path>>(
 }
 
 /// Internally used to load a font (for internal visibility).
-pub fn internal_load_font_from_ll<'ttf, 'r, R>(raw: *mut ttf::TTF_Font, rwops: R) -> Font<'ttf, 'r>
+pub(super) fn internal_load_font_from_ll<'ttf, 'r, R>(
+    raw: *mut ttf::TTF_Font,
+    rwops: R,
+) -> Font<'ttf, 'r>
 where
     R: Into<Option<RWops<'r>>>,
 {
@@ -283,7 +287,7 @@ where
 }
 
 /// Internally used to load a font (for internal visibility).
-pub fn internal_load_font_at_index<'ttf, P: AsRef<Path>>(
+pub(super) fn internal_load_font_at_index<'ttf, P: AsRef<Path>>(
     path: P,
     index: u32,
     ptsize: u16,
@@ -308,7 +312,7 @@ impl<'ttf, 'r> Font<'ttf, 'r> {
     // this can prevent introducing UB until
     // https://github.com/rust-lang/rust-clippy/issues/5953 is fixed
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    unsafe fn raw(&self) -> *mut ttf::TTF_Font {
+    pub fn raw(&self) -> *mut ttf::TTF_Font {
         self.raw
     }
 
@@ -406,7 +410,7 @@ impl<'ttf, 'r> Font<'ttf, 'r> {
                 ttf::TTF_HINTING_NORMAL => Hinting::Normal,
                 ttf::TTF_HINTING_LIGHT => Hinting::Light,
                 ttf::TTF_HINTING_MONO => Hinting::Mono,
-                ttf::TTF_HINTING_NONE | _ => Hinting::None,
+                _ /* | ttf::TTF_HINTING_NONE */ => Hinting::None,
             }
         }
     }
@@ -497,7 +501,7 @@ impl<'ttf, 'r> Font<'ttf, 'r> {
     /// Returns the index of the given character in this font face.
     pub fn find_glyph(&self, ch: char) -> Option<u16> {
         unsafe {
-            let ret = ttf::TTF_GlyphIsProvided(self.raw, ch as u16);
+            let ret = ttf::TTF_GlyphIsProvided32(self.raw, ch as u32);
             if ret == 0 {
                 None
             } else {
@@ -515,9 +519,9 @@ impl<'ttf, 'r> Font<'ttf, 'r> {
         let mut advance = 0;
 
         let ret = unsafe {
-            ttf::TTF_GlyphMetrics(
+            ttf::TTF_GlyphMetrics32(
                 self.raw,
-                ch as u16,
+                ch as u32,
                 &mut minx,
                 &mut maxx,
                 &mut miny,
